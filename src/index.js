@@ -14,8 +14,11 @@ mongoose.connect(config.DB_URL)
   .catch((err) => console.log(err));
 
 require('./models/film.model');
+require('./models/cinema.model');
+
 const Film = mongoose.model('films');
-// database.films.forEach(f => new Film(f).save());
+const Cinema = mongoose.model('cinemas');
+// database.cinemas.forEach(c => new Cinema(c).save());
 
 const bot = new TelegramBot(config.TOKEN, {
   polling: true
@@ -36,10 +39,13 @@ bot.on('message', msg => {
       });
       break;
     case kb.film.comedy:
+      sendFilmsByQuery(chatId, {type: 'comedy'})
       break;
     case kb.film.action:
+      sendFilmsByQuery(chatId, {type: 'action'})
       break;
     case kb.film.random:
+      sendFilmsByQuery(chatId, {})
       break;
     case kb.home.cinemas:
       break
@@ -61,3 +67,56 @@ bot.onText(/\/start/, msg => {
     }
   });
 });
+
+bot.onText(/\/f(.+)/, (msg, [source, match]) => {
+  const filmUuid = helper.getItemUuid(source);
+  const chatId = helper.getChatId(msg);
+  Film.findOne({uuid: filmUuid}).then(film => {
+    const caption = `Name: ${film.name}\nYear: ${film.year}\Ratio: ${film.rate}\nLength: ${film.length}\nCountry: ${film.country}`
+    bot.sendPhoto(chatId, film.picture, {
+      caption: caption,
+      reply_markup: {
+        inline_keyboard: [
+          [
+            {
+              text: 'Add to favourite',
+              callback_data: ''
+            },
+            {
+              text: 'Show cinemas',
+              callback_data: ''
+            }
+          ],
+          [
+            {
+              text: `Kinopoisk ${film.name}`,
+              url: film.link
+            }
+          ]
+        ]
+      }
+    })
+  })
+});
+function sendFilmsByQuery(chatId, query) {
+  Film.find(query).then(films => {
+    const html = films.map((f, i) => {
+      return `<b>${i + 1}</b> ${f.name} - /f${f.uuid}`
+    }).join('\n');
+
+    sendHTML(chatId, html, 'films');
+  })
+}
+
+function sendHTML(chatId, html, kbName = null) {
+  const options = {
+    parse_mode: 'HTML'
+  }
+  if(kbName) {
+    options['reply_markup'] = {
+      keyboard: keyboard[kbName]
+    }
+  }
+
+  bot.sendMessage(chatId, html, options);
+}
