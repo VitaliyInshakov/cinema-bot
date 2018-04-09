@@ -5,6 +5,8 @@ const kb = require('./keyboard-buttons');
 const keyboard = require('./keyboard');
 const mongoose = require('mongoose');
 const database = require('../database.json');
+const geolib = require('geolib');
+const _ = require('lodash');
 
 helper.logStart();
 
@@ -48,6 +50,11 @@ bot.on('message', msg => {
       sendFilmsByQuery(chatId, {})
       break;
     case kb.home.cinemas:
+      bot.sendMessage(chatId, `Send location`, {
+        reply_markup: {
+          keyboard: keyboard.cinemas
+        }
+      });
       break
     case kb.back:
       bot.sendMessage(chatId, 'What would you like to watch?', {
@@ -56,6 +63,10 @@ bot.on('message', msg => {
         }
       });
       break
+  }
+
+  if(msg.location) {
+    getCinemasInCoords(chatId, msg.location);
   }
 });
 
@@ -119,4 +130,18 @@ function sendHTML(chatId, html, kbName = null) {
   }
 
   bot.sendMessage(chatId, html, options);
+}
+
+function getCinemasInCoords(chatId, location) {
+  Cinema.find({}).then(cinemas => {
+    cinemas.forEach(c => {
+      c.distance = geolib.getDistance(location, c.location) / 1000;
+    });
+
+    cinemas = _.sortBy(cinemas, 'distance');
+    const html = cinemas.map((c, i) => {
+      return `<b>${i + 1}</b> ${c.name}. <em>Distance</em> - <strong>${c.distance}</strong>km. /c${c.uuid}`
+    }).join('\n');
+    sendHTML(chatId, html, 'home');
+  })
 }
