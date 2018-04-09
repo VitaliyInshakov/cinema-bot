@@ -4,13 +4,18 @@ const helper = require('./helper');
 const kb = require('./keyboard-buttons');
 const keyboard = require('./keyboard');
 const mongoose = require('mongoose');
+const database = require('../database.json');
 
 helper.logStart();
 
-mongoose.connect(config.DB_URL, {
-  useMongoClient: true
-}).then(() => console.log('MongoDB connected'))
+mongoose.Promise = global.Promise;
+mongoose.connect(config.DB_URL)
+  .then(() => console.log('MongoDB connected'))
   .catch((err) => console.log(err));
+
+require('./models/film.model');
+const Film = mongoose.model('films');
+// database.films.forEach(f => new Film(f).save());
 
 const bot = new TelegramBot(config.TOKEN, {
   polling: true
@@ -29,6 +34,12 @@ bot.on('message', msg => {
           keyboard: keyboard.films
         }
       });
+      break;
+    case kb.film.comedy:
+      break;
+    case kb.film.action:
+      break;
+    case kb.film.random:
       break;
     case kb.home.cinemas:
       break
